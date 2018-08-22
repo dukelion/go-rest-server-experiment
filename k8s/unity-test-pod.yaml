@@ -1,0 +1,19 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: unity-test
+  labels:
+    app: unity-test
+spec:
+  template:
+    metadata:
+      labels:
+        app: unity-test
+        tier: web
+    spec:
+      containers:
+      - name: unity-test
+        image: gcr.io/${PROJECT_ID}/unity-test:latest
+        ports:
+        - containerPort: 8080

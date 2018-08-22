@@ -1,4 +1,4 @@
-PHONY: clean test lint fmt docker docker_cleanbuild docker_cleanimages all
+PHONY: clean test lint fmt docker docker_cleanbuild docker_cleanimages all k8s_service
 .DEFAULT_GOAL := all
 
 SHELL := /bin/sh
@@ -15,6 +15,8 @@ GOPATH ?= "/src"
 
 GOLANGCI_LINT_VERSION=1.9.3
 GOLANGCI_LINT_ARCHIVE=golangci-lint-$(GOLANGCI_LINT_VERSION)-linux-amd64.tar.gz
+export GCLOUD_PROJECT=$(shell gcloud config get-value project -q)
+GCLOUD_IMAGE=gcr.io/$(GCLOUD_PROJECT)/unity-test:latest
 
 TARGET=unity-test
 
@@ -55,7 +57,41 @@ docker_run:
 	IRON_TOKEN=$(shell jq -r .token ~/iron.json)
 	IRON_PROJECT_ID=$(shell jq -r .project_id ~/iron.json) 
 	docker run -d -e IRON_TOKEN=$(IRON_TOKEN) -e IRON_PROJECT_ID=$(IRON_PROJECT_ID) --name unity-test -p 8080:8080 unity-test
-	
+
+docker_gcloud_push: docker
+	docker tag unity-test $(GCLOUD_IMAGE)
+	gcloud docker --verbosity=error -- push $(GCLOUD_IMAGE)
+
+k8s_secrets:
+	k8s/create_secrets.sh
+
+k8s_remove_secrets:
+	kubectl delete secrets ironmq-creds
+
+k8s_pod:
+	k8s/create_pod.sh 
+	sleep 5
+
+k8s_remove_pod:
+	kubectl delete deploy unity-test 
+
+k8s_service:
+	k8s/wait_deploy.sh unity-test 30 && kubectl expose deployment/unity-test --type=LoadBalancer --name=unity-test-svc
+
+k8s_remove_service:
+	kubectl delete svc unity-test-svc
+
+k8s_ingress:
+	k8s/create_ingress_google.sh
+
+k8s_remove_ingress:
+	kubectl delete ing test-ingress
+
+deploy_gke: k8s_secrets k8s_pod k8s_service k8s_ingress
+	k8s/k8s_test.sh
+
+remove_gke: k8s_remove_ingress k8s_remove_service k8s_remove_pod k8s_remove_secrets
+
 
 $(GOBIN)/dep:
 	$(GOGET) -u github.com/golang/dep/cmd/dep
