@@ -1,7 +1,7 @@
-PHONY: clean test lint fmt docker all 
+PHONY: clean test lint fmt docker docker_cleanbuild docker_cleanimages all
 .DEFAULT_GOAL := all
 
-SHELL := /bin/bash
+SHELL := /bin/sh
 # Go parameters
 GOCMD=$(shell which go)
 GOBUILD=$(GOCMD) build
@@ -11,7 +11,7 @@ GOGET=$(GOCMD) get
 GOFMT=$(GOCMD) fmt
 GOBIN=$(GOPATH)/bin
 PROJECT_PATH=$(realpath $(shell dirname $(lastword $(MAKEFILE_LIST))))
-GOPATH ?= $(realpath $(PROJECT_PATH)/../../../../../)
+GOPATH ?= "/src"
 
 GOLANGCI_LINT_VERSION=1.9.3
 GOLANGCI_LINT_ARCHIVE=golangci-lint-$(GOLANGCI_LINT_VERSION)-linux-amd64.tar.gz
@@ -22,7 +22,6 @@ all: fmt lint deps build test
 
 clean:
 	rm -f $(TARGET)
-
 
 test:
 	$(GOTEST) -v ./...
@@ -40,7 +39,26 @@ build: deps
 
 
 docker:
-	docker build  -t unity-test .
+	docker build -t unity-test $(PROJECT_PATH)
+
+docker_cleanbuild:
+	docker build -t --no-cache unity-test $(PROJECT_PATH)
+
+docker_cleanimages:
+	$(shell docker rmi $$(docker images -q --filter "dangling=true"))
+
+docker_run:
+	if [ -n "$(shell docker ps -aq --filter name=unity-test)" ]; then \
+		docker stop unity-test; \
+		docker rm unity-test; \
+	fi
+	IRON_TOKEN=$(shell jq -r .token ~/iron.json)
+	IRON_PROJECT_ID=$(shell jq -r .project_id ~/iron.json) 
+	docker run -d -e IRON_TOKEN=$(IRON_TOKEN) -e IRON_PROJECT_ID=$(IRON_PROJECT_ID) --name unity-test -p 8080:8080 unity-test
+	
+
+$(GOBIN)/dep:
+	$(GOGET) -u github.com/golang/dep/cmd/dep
 
 $(GOBIN)/golangci-lint/golangci-lint:
 	curl -OL https://github.com/golangci/golangci-lint/releases/download/v$(GOLANGCI_LINT_VERSION)/$(GOLANGCI_LINT_ARCHIVE)
@@ -51,4 +69,5 @@ $(GOBIN)/golangci-lint/golangci-lint:
 
 lint: $(GOBIN)/golangci-lint/golangci-lint
 	find . -path ./vendor -prune -o -name \*.go | $(GOBIN)/golangci-lint/golangci-lint run
+	yamllint k8s/
 
