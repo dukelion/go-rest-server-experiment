@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/dukelion/unity-test/payload"
 	"github.com/gorilla/mux"
+	"github.com/iron-io/iron_go3/mq"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -26,6 +27,7 @@ func ConfigGet() (Config, error) {
 type UnityTest struct {
 	config Config
 	logger *logrus.Logger
+	queue  mq.Queue
 }
 
 // NewUnityTest creates REST server instance
@@ -35,6 +37,7 @@ func NewUnityTest(cfg Config) (*UnityTest, error) {
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.WarnLevel)
 	srv.logger = logrus.New()
+	srv.queue = mq.New("test_queue")
 	return srv, nil
 }
 
@@ -46,7 +49,17 @@ func (srv *UnityTest) ProcessPayload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	srv.logger.Infof("%+v\n", payload)
+	strpayload := string(payload[:])
+	srv.logger.Infof("Message :%s\n", strpayload)
+	var id string
+	id, err = srv.queue.PushMessage(mq.Message{Delay: 0, Body: strpayload})
+
+	if err != nil {
+		srv.logger.Errorf("Error while processing: %s", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	srv.logger.Infof("Message posted with id %s", id)
 }
 
 // Start launching REST server

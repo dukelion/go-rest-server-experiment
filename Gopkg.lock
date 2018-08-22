@@ -34,6 +34,18 @@
   version = "v1.6.2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:29998f2c39ca55c459ba54a116d3880a2ca8ff81cafb7064c74aff3a3c6c5506"
+  name = "github.com/iron-io/iron_go3"
+  packages = [
+    "api",
+    "config",
+    "mq",
+  ]
+  pruneopts = "UT"
+  revision = "f14ff828153c3d54e6827e7c7aad8c28ce8140e6"
+
+[[projects]]
   digest = "1:edbef42561faa44c19129b68d1e109fbc1647f63239250391eadc8d0e7c9f669"
   name = "github.com/kelseyhightower/envconfig"
   packages = ["."]
@@ -90,6 +102,7 @@
   input-imports = [
     "github.com/Sirupsen/logrus",
     "github.com/gorilla/mux",
+    "github.com/iron-io/iron_go3/mq",
     "github.com/kelseyhightower/envconfig",
     "github.com/stretchr/testify/assert",
     "gopkg.in/validator.v2",

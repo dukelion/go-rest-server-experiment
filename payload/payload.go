@@ -20,7 +20,7 @@ type Data struct {
 }
 
 // Process is the function to unmarshal and validate payload
-func Process(payload io.Reader) (*Data, error) {
+func Process(payload io.Reader) ([]byte, error) {
 	var result Data
 	dec := json.NewDecoder(payload)
 	dec.DisallowUnknownFields()
@@ -45,8 +45,13 @@ func Process(payload io.Reader) (*Data, error) {
 	if err != nil {
 		return nil, err
 	}
+	var strresult []byte
+	strresult, err = json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
 
-	return &result, nil
+	return strresult[:], nil
 }
 
 func isTimestamp(val interface{}, param string) error {
